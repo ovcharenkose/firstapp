@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#A8B890">
+  <title>Year</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="year-page">
+
+  <header class="cal-header">
+    <a href="calendar.html" class="cal-back" aria-label="Back">‹</a>
+    <h1 class="cal-title">Calendar</h1>
+    <div class="cal-actions"></div>
+  </header>
+
+  <main class="year-main">
+    <div class="cal-panel">
+      <div class="cal-panel-title">365 days</div>
+      <div class="year-list" id="yearList"></div>
+    </div>
+  </main>
+
+  <!-- Модалка просмотра месяца (сетка 30 дней) -->
+  <div class="modal-overlay" id="monthViewModal">
+    <div class="modal-box">
+      <a href="#" class="cal-back modal-back" id="monthViewBack" aria-label="Back">‹</a>
+      <div class="modal-day" id="monthViewTitle">Month 1</div>
+      <p class="modal-stats" id="monthViewStats"></p>
+      <div class="cal-grid month-view-grid" id="monthViewGrid"></div>
+    </div>
+  </div>
+
+  <!-- Модалка просмотра заметки -->
+  <div class="modal-overlay" id="yearNotesModal">
+    <div class="modal-box">
+      <a href="#" class="cal-back modal-back" id="yearNotesBack" aria-label="Back">‹</a>
+      <div class="modal-day" id="yearNotesTitle">Day 1</div>
+      <p class="notes-readonly" id="yearNotesText"></p>
+    </div>
+  </div>
+
+  <script src="../script.js"></script>
+</body>
+</html>

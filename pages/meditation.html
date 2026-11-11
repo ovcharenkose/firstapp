@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#A8B890">
+  <title>Meditation</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="med-page">
+
+  <header class="cal-header">
+    <a href="../index.html" class="cal-back" aria-label="Back">‹</a>
+    <div class="cal-actions"></div>
+  </header>
+
+  <!-- Экран выбора (3 шага) -->
+  <main class="med-setup" id="medSetup">
+    <!-- ВОТ ОНА, ОБЕРТКА -->
+    <div class="med-content-box">
+      <h1 class="cal-title" style="margin-bottom: 20px;">Meditation</h1>
+      
+      <div class="med-step" id="step1">
+        <p class="med-question">Выбери тип медитации</p>
+        <button class="btn btn-primary med-opt" data-type="morning">Утренняя</button>
+        <button class="btn btn-primary med-opt" data-type="night">Ночная</button>
+      </div>
+
+      <div class="med-step" id="step2" style="display:none;">
+        <p class="med-question">Выбери продолжительность</p>
+        <button class="btn btn-primary med-opt" data-duration="10">10 минут</button>
+        <button class="btn btn-primary med-opt" data-duration="15">15 минут</button>
+      </div>
+
+      <div class="med-step" id="step3" style="display:none;">
+        <p class="med-question">Выбери медитацию</p>
+        <button class="btn btn-primary med-opt" data-mood="energizing">Бодрящая</button>
+        <button class="btn btn-primary med-opt" data-mood="calm">Спокойная</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Экран плеера -->
+  <main class="med-player" id="medPlayer" style="display:none;">
+    <div class="med-avatar-wrap">
+      <img src="../images/meditation.webp" alt="Meditation" class="med-avatar">
+    </div>
+
+    <div class="med-glass-panel">
+      <canvas id="medCanvas" class="med-canvas-bg"></canvas>
+      
+      <button class="med-play-btn" id="medPlayBtn">▶</button>
+      <button class="med-rewind-btn" id="medRewindBtn">↺ 10</button>
+      <div class="med-progress-wrap">
+        <div class="med-progress-bar" id="medProgress"></div>
+      </div>
+    </div>
+
+    <audio id="medAudio" src="" loop></audio>
+  </main>
+
+  <script src="../script.js"></script>
+</body>
+</html>

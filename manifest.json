@@ -1,0 +1,19 @@
+{
+  "name": "Change Your Life",
+  "short_name": "CYL",
+  "description": "Calendar, Meditation, Fixation",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#A8B890",
+  "theme_color": "#A8B890",
+  "icons": [
+    {
+      "src": "icons/alarm.png",
+      "sizes": "544x544",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#A8B890">
+  <title>Calendar</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body class="calendar-page">
+
+  <!-- Верхняя панель -->
+  <header class="cal-header">
+    <a href="../index.html" class="cal-back" aria-label="Back">‹</a>
+    <h1 class="cal-title">Calendar</h1>
+    <div class="cal-actions">
+      <button class="cal-icon-btn" id="yearBtn" aria-label="Year">Cal</button>
+      <button class="cal-icon-btn" id="finishBtn" aria-label="Finish month">✓</button>
+    </div>
+  </header>
+
+  <!-- Стеклянная панель с 30 ячейками -->
+  <main class="cal-main">
+    <div class="cal-panel">
+      <div class="cal-panel-title">30 days</div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+  </main>
+
+  <!-- Модалка выбора дня -->
+  <div class="modal-overlay" id="dayModal">
+    <div class="modal-box">
+      <div class="modal-day" id="modalDayTitle">Day 1</div>
+<button class="btn btn-primary" id="doneBtn">Выполнено</button>
+<button class="btn btn-primary" id="skipBtn">Пропуск</button>
+<button class="btn btn-primary" id="notesBtn">Заметки дня</button>
+<button class="btn btn-ghost" id="viewNotesBtn" style="display:none;">Посмотреть заметки</button>
+<button class="btn btn-ghost" id="closeDayModal">Отмена</button>
+    </div>
+  </div>
+
+  <!-- Модалка заметок -->
+  <div class="modal-overlay" id="notesModal">
+    <div class="modal-box">
+      <div class="modal-day">Заметка — <span id="notesDayTitle"></span></div>
+      <textarea class="notes-input" id="notesInput" placeholder="Напиши что угодно..."></textarea>
+      <button class="btn btn-primary" id="saveNotes">Сохранить</button>
+      <button class="btn btn-ghost" id="closeNotesModal">Отмена</button>
+    </div>
+  </div>
+
+  <!-- Модалка завершения месяца -->
+  <div class="modal-overlay" id="finishModal">
+    <div class="modal-box">
+      <a href="#" class="cal-back modal-back" id="finishBack" aria-label="Back">‹</a>
+      <div class="modal-day">Вы успешно закончили этот месяц.</div>
+      <p class="modal-stats" id="finishStats">Выполнено: 0 / Пропущено: 0</p>
+      <p class="modal-question">Желаете продолжить ваш путь?</p>
+      <button class="btn btn-primary" id="nextMonthBtn">+30 дней</button>
+    </div>
+  </div>
+
+  <script src="../script.js"></script>
+</body>
+</html>
