@@ -304,7 +304,7 @@ if ('serviceWorker' in navigator) {
   let isBreak = false;
   let timerInterval = null;
   let timeLeft = 0;
-  let audioCtx, analyser, source;
+  let waveAnimationId = null; // Для остановки фейковых волн
 
   // Кнопка "Назад"
   if (backBtn) {
@@ -316,6 +316,7 @@ if ('serviceWorker' in navigator) {
         fixProgress.style.width = '0%';
         fixPlayer.style.display = 'none';
         musicSetup.style.display = 'flex';
+        cancelAnimationFrame(waveAnimationId); // Останавливаем волны
       }
     });
   }
@@ -338,14 +339,6 @@ if ('serviceWorker' in navigator) {
       fixMusicName.textContent = btn.textContent;
       fixAudio.src = '../audio/' + music + '.m4a';
 
-      // Разблокировка звука
-      fixAudio.volume = 0;
-      fixAudio.play().then(() => {
-        fixAudio.pause();
-        fixAudio.currentTime = 0;
-        fixAudio.volume = 1;
-      }).catch(err => console.warn("Audio unlock:", err));
-
       musicSetup.style.display = 'none';
       countdownSetup.style.display = 'flex';
 
@@ -361,8 +354,10 @@ if ('serviceWorker' in navigator) {
           countdownSetup.style.display = 'none';
           fixPlayer.style.display = 'flex';
           
+          // Запускаем звук и фейковые волны
+          fixAudio.play().catch(err => console.warn("Audio play error:", err));
           startLesson(); 
-          initFixWaves(); // Включаем волны только когда экран уже открыт
+          startFakeWaves();
         }
       }, 1000);
     });
@@ -373,7 +368,6 @@ if ('serviceWorker' in navigator) {
     isBreak = false;
     timeLeft = 60 * 60;
     
-    fixAudio.play().catch(err => console.warn("Audio play error:", err));
     runTimer();
     updateMediaSession();
   }
@@ -415,6 +409,7 @@ if ('serviceWorker' in navigator) {
             finishSetup.style.display = 'flex';
             fixPlayer.style.display = 'none';
             fixAudio.pause();
+            cancelAnimationFrame(waveAnimationId);
           } else {
             startLesson();
           }
@@ -427,6 +422,7 @@ if ('serviceWorker' in navigator) {
             finishSetup.style.display = 'flex';
             fixPlayer.style.display = 'none';
             fixAudio.pause();
+            cancelAnimationFrame(waveAnimationId);
           }
         }
       }
@@ -451,34 +447,18 @@ if ('serviceWorker' in navigator) {
     }
   }
 
-  // Волны для фиксации (исправленные для iPhone)
-  function initFixWaves() {
+  // === ФЕЙКОВЫЕ ВОЛНЫ (Без анализа звука, работает везде) ===
+  function startFakeWaves() {
     const canvas = document.getElementById('fixCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      analyser = audioCtx.createAnalyser();
-      source = audioCtx.createMediaElementSource(fixAudio);
-      source.connect(analyser);
-      analyser.connect(audioCtx.destination);
-    }
-
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-
-    analyser.fftSize = 128;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-
     let offset = 0;
+    let time = 0;
 
     function draw() {
-      requestAnimationFrame(draw);
-      analyser.getByteFrequencyData(dataArray);
-
+      waveAnimationId = requestAnimationFrame(draw);
+      
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.offsetWidth;
       const h = canvas.offsetHeight;
@@ -491,9 +471,9 @@ if ('serviceWorker' in navigator) {
 
       ctx.clearRect(0, 0, w, h);
 
-      let sum = 0;
-      for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
-      const avg = sum / bufferLength / 255; 
+      // Генерируем псевдо-случайную амплитуду, чтобы волны "дышали"
+      time += 0.02;
+      const fakeAvg = 0.3 + Math.sin(time) * 0.15 + Math.sin(time * 2.3) * 0.1;
 
       const grad = ctx.createLinearGradient(0, 0, w, 0);
       grad.addColorStop(0.00, 'rgba(201, 160, 160, 0.8)');
@@ -506,8 +486,8 @@ if ('serviceWorker' in navigator) {
       ctx.moveTo(0, h);
       const points = 30;
       const step = w / points;
-      const amp = 5 + avg * 30; 
-      offset += 0.04 + avg * 0.1;
+      const amp = 5 + fakeAvg * 30; 
+      offset += 0.04 + fakeAvg * 0.1;
 
       for (let i = 0; i <= points; i++) {
         const x = i * step;
