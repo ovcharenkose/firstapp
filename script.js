@@ -449,7 +449,6 @@ if ('serviceWorker' in navigator) {
   const fixProgress = document.getElementById('fixProgress');
   const fixAudio = document.getElementById('fixAudio');
   
-  // Кнопка "Назад"
   const backBtn = document.querySelector('.cal-back');
 
   let totalLessons = 3;
@@ -461,25 +460,17 @@ if ('serviceWorker' in navigator) {
   let timerInterval = null;
   let timeLeft = 0;
 
-  // Логика кнопки "Назад"
+  // Кнопка "Назад"
   if (backBtn) {
     backBtn.addEventListener('click', (e) => {
-      // Если мы на экране плеера (урок/перерыв)
       if (fixPlayer.style.display === 'flex') {
-        e.preventDefault(); // Отменяем переход по ссылке
-        
-        // Останавливаем таймер и музыку
+        e.preventDefault();
         clearInterval(timerInterval);
         fixAudio.pause();
-        
-        // Сбрасываем прогресс
         fixProgress.style.width = '0%';
-        
-        // Возвращаем на экран выбора музыки
         fixPlayer.style.display = 'none';
         musicSetup.style.display = 'flex';
       }
-      // Если мы на экране выбора музыки, стрелка работает как обычно (ведет в меню)
     });
   }
 
@@ -501,6 +492,9 @@ if ('serviceWorker' in navigator) {
       fixMusicName.textContent = btn.textContent;
       fixAudio.src = '../audio/' + music + '.m4a';
 
+      // Запускаем воспроизведение прямо сейчас, пока палец еще на экране (Safari это любит)
+      fixAudio.play().catch(err => console.warn("Audio play error:", err));
+
       musicSetup.style.display = 'none';
       countdownSetup.style.display = 'flex';
 
@@ -515,7 +509,9 @@ if ('serviceWorker' in navigator) {
           clearInterval(countInt);
           countdownSetup.style.display = 'none';
           fixPlayer.style.display = 'flex';
-          startLesson();
+          
+          // Важно: музыка уже играет, таймер пошел
+          startLesson(); 
           initFixWaves();
         }
       }, 1000);
@@ -525,9 +521,15 @@ if ('serviceWorker' in navigator) {
   function startLesson() {
     fixStatus.textContent = 'Урок ' + currentLesson + '/' + totalLessons;
     isBreak = false;
-    timeLeft = 60 * 60; // 1 час = 60 минут
-    fixAudio.play();
+    timeLeft = 60 * 60;
+    
+    // Если музыка остановилась (например, при переходе с перерыва), включаем её обратно
+    if (fixAudio.paused) {
+      fixAudio.play().catch(err => console.warn("Audio play error:", err));
+    }
+    
     runTimer();
+    updateMediaSession();
   }
 
   function startBreak(isExtra = false) {
@@ -535,6 +537,25 @@ if ('serviceWorker' in navigator) {
     isBreak = true;
     timeLeft = (isExtra ? extraBreakMin : breakMin) * 60;
     runTimer();
+    updateMediaSession();
+  }
+
+  // === ФОНОВЫЙ РЕЖИМ (Экран блокировки) ===
+  function updateMediaSession() {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: fixStatus.textContent, // "Урок 1/3" или "Break"
+        artist: 'Change Your Life',
+        album: fixMusicName.textContent
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        fixAudio.play();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        fixAudio.pause();
+      });
+    }
   }
 
   function runTimer() {
