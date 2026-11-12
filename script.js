@@ -338,7 +338,7 @@ if ('serviceWorker' in navigator) {
       fixMusicName.textContent = btn.textContent;
       fixAudio.src = '../audio/' + music + '.m4a';
 
-      // === КАК В МЕДИТАЦИИ: Запускаем музыку прямо сейчас, пока палец на экране ===
+      // Включаем музыку сразу
       fixAudio.play().catch(err => console.warn("Audio play error:", err));
 
       musicSetup.style.display = 'none';
@@ -356,7 +356,6 @@ if ('serviceWorker' in navigator) {
           countdownSetup.style.display = 'none';
           fixPlayer.style.display = 'flex';
           
-          // Музыка уже играет. Просто запускаем таймер и волны.
           startLesson(); 
           initFixWaves(); 
         }
@@ -369,7 +368,6 @@ if ('serviceWorker' in navigator) {
     isBreak = false;
     timeLeft = 60 * 60;
     
-    // Если музыка остановилась (например, при переходе с перерыва), включаем её обратно
     if (fixAudio.paused) {
       fixAudio.play().catch(err => console.warn("Audio play error:", err));
     }
@@ -436,7 +434,7 @@ if ('serviceWorker' in navigator) {
     }
   }
 
-  // Волны для фиксации (как в медитации)
+  // Волны для фиксации
   function initFixWaves() {
     const canvas = document.getElementById('fixCanvas');
     if (!canvas) return;
