@@ -275,7 +275,9 @@ if ('serviceWorker' in navigator) {
 })();
 
 
+
 // ===== Фиксация =====
+
 (function () {
   const fixSetup = document.getElementById('fixSetup');
   if (!fixSetup) return;
@@ -293,7 +295,6 @@ if ('serviceWorker' in navigator) {
   const fixMusicName = document.getElementById('fixMusicName');
   const fixProgress = document.getElementById('fixProgress');
   const fixAudio = document.getElementById('fixAudio');
-  
   const backBtn = document.querySelector('.cal-back');
 
   let totalLessons = 3;
@@ -304,7 +305,7 @@ if ('serviceWorker' in navigator) {
   let isBreak = false;
   let timerInterval = null;
   let timeLeft = 0;
-  let waveAnimationId = null; // Для остановки фейковых волн
+  let audioCtx = null; // Создадим его только когда дойдем до плеера
 
   // Кнопка "Назад"
   if (backBtn) {
@@ -316,7 +317,6 @@ if ('serviceWorker' in navigator) {
         fixProgress.style.width = '0%';
         fixPlayer.style.display = 'none';
         musicSetup.style.display = 'flex';
-        cancelAnimationFrame(waveAnimationId); // Останавливаем волны
       }
     });
   }
@@ -332,13 +332,14 @@ if ('serviceWorker' in navigator) {
     musicSetup.style.display = 'flex';
   });
 
-  // Шаг 2 -> Шаг 3 (Отсчет)
+  // Шаг 2 -> Шаг 3 (Отсчет и запуск)
   document.querySelectorAll('.fix-music-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const music = btn.dataset.music;
       fixMusicName.textContent = btn.textContent;
       fixAudio.src = '../audio/' + music + '.m4a';
 
+      // Начинаем отсчет
       musicSetup.style.display = 'none';
       countdownSetup.style.display = 'flex';
 
@@ -354,10 +355,13 @@ if ('serviceWorker' in navigator) {
           countdownSetup.style.display = 'none';
           fixPlayer.style.display = 'flex';
           
-          // Запускаем звук и фейковые волны
+          // Отсчет закончился. Включаем звук и запускаем волны.
+          // Важно: это происходит сразу после таймера, но палец пользователя 
+          // только что нажимал кнопку, поэтому Safari разрешит звук.
           fixAudio.play().catch(err => console.warn("Audio play error:", err));
+          
           startLesson(); 
-          startFakeWaves();
+          initFixWaves(); 
         }
       }, 1000);
     });
@@ -367,6 +371,10 @@ if ('serviceWorker' in navigator) {
     fixStatus.textContent = 'Урок ' + currentLesson + '/' + totalLessons;
     isBreak = false;
     timeLeft = 60 * 60;
+    
+    if (fixAudio.paused) {
+      fixAudio.play().catch(err => console.warn("Audio play error:", err));
+    }
     
     runTimer();
     updateMediaSession();
@@ -401,6 +409,15 @@ if ('serviceWorker' in navigator) {
       timeLeft--;
       updateTimerDisplay();
 
+      // Обновляем время на экране блокировки каждую секунду
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: fixStatus.textContent + ' (' + fixTimer.textContent + ')',
+          artist: 'Change Your Life',
+          album: fixMusicName.textContent
+        });
+      }
+
       if (timeLeft <= 0) {
         clearInterval(timerInterval);
         if (isBreak) {
@@ -409,7 +426,6 @@ if ('serviceWorker' in navigator) {
             finishSetup.style.display = 'flex';
             fixPlayer.style.display = 'none';
             fixAudio.pause();
-            cancelAnimationFrame(waveAnimationId);
           } else {
             startLesson();
           }
@@ -422,7 +438,6 @@ if ('serviceWorker' in navigator) {
             finishSetup.style.display = 'flex';
             fixPlayer.style.display = 'none';
             fixAudio.pause();
-            cancelAnimationFrame(waveAnimationId);
           }
         }
       }
@@ -447,18 +462,38 @@ if ('serviceWorker' in navigator) {
     }
   }
 
-  // === ФЕЙКОВЫЕ ВОЛНЫ (Без анализа звука, работает везде) ===
-  function startFakeWaves() {
+  // Волны для фиксации
+  function initFixWaves() {
     const canvas = document.getElementById('fixCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
+    // Создаем AudioContext один раз и подключаем к аудио
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = audioCtx.createAnalyser();
+      const source = audioCtx.createMediaElementSource(fixAudio);
+      source.connect(analyser);
+      analyser.connect(audioCtx.destination);
+      audioCtx.analyser = analyser; // Сохраняем для доступа в draw
+    }
+
+    // Если контекст был "усыплен", будим его
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    const analyser = audioCtx.analyser;
+    analyser.fftSize = 128;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
     let offset = 0;
-    let time = 0;
 
     function draw() {
-      waveAnimationId = requestAnimationFrame(draw);
-      
+      requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(dataArray);
+
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.offsetWidth;
       const h = canvas.offsetHeight;
@@ -471,9 +506,9 @@ if ('serviceWorker' in navigator) {
 
       ctx.clearRect(0, 0, w, h);
 
-      // Генерируем псевдо-случайную амплитуду, чтобы волны "дышали"
-      time += 0.02;
-      const fakeAvg = 0.3 + Math.sin(time) * 0.15 + Math.sin(time * 2.3) * 0.1;
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+      const avg = sum / bufferLength / 255; 
 
       const grad = ctx.createLinearGradient(0, 0, w, 0);
       grad.addColorStop(0.00, 'rgba(201, 160, 160, 0.8)');
@@ -486,8 +521,8 @@ if ('serviceWorker' in navigator) {
       ctx.moveTo(0, h);
       const points = 30;
       const step = w / points;
-      const amp = 5 + fakeAvg * 30; 
-      offset += 0.04 + fakeAvg * 0.1;
+      const amp = 5 + avg * 30; 
+      offset += 0.04 + avg * 0.1;
 
       for (let i = 0; i <= points; i++) {
         const x = i * step;
