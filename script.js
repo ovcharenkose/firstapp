@@ -338,9 +338,7 @@ if ('serviceWorker' in navigator) {
       fixMusicName.textContent = btn.textContent;
       fixAudio.src = '../audio/' + music + '.m4a';
 
-      // Включаем музыку сразу
-      fixAudio.play().catch(err => console.warn("Audio play error:", err));
-
+      // Запускаем отсчет
       musicSetup.style.display = 'none';
       countdownSetup.style.display = 'flex';
 
@@ -356,8 +354,12 @@ if ('serviceWorker' in navigator) {
           countdownSetup.style.display = 'none';
           fixPlayer.style.display = 'flex';
           
+          // Сначала запускаем волны (создаем AudioContext), а ПОТОМ звук.
+          // Именно так это работает в Медитации.
+          initFixWaves();
+          fixAudio.play().catch(err => console.warn("Audio play error:", err));
+          
           startLesson(); 
-          initFixWaves(); 
         }
       }, 1000);
     });
@@ -434,7 +436,7 @@ if ('serviceWorker' in navigator) {
     }
   }
 
-  // Волны для фиксации
+  // Волны для фиксации (как в медитации)
   function initFixWaves() {
     const canvas = document.getElementById('fixCanvas');
     if (!canvas) return;
