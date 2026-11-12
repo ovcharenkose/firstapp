@@ -305,6 +305,7 @@ if ('serviceWorker' in navigator) {
   let isBreak = false;
   let timerInterval = null;
   let timeLeft = 0;
+  let fixAudioCtx = null;
 
   // Кнопка "Назад"
   if (backBtn) {
@@ -331,14 +332,16 @@ if ('serviceWorker' in navigator) {
     musicSetup.style.display = 'flex';
   });
 
-  // Шаг 2 -> Шаг 3 (Отсчет)
+  // Шаг 2 -> Шаг 3 (Отсчет + Мгновенный запуск звука)
   document.querySelectorAll('.fix-music-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const music = btn.dataset.music;
       fixMusicName.textContent = btn.textContent;
       fixAudio.src = '../audio/' + music + '.m4a';
 
-      // Запускаем отсчет
+      // === КАК В МЕДИТАЦИИ: Включаем звук прямо сейчас ===
+      fixAudio.play().catch(err => console.warn("Audio play error:", err));
+
       musicSetup.style.display = 'none';
       countdownSetup.style.display = 'flex';
 
@@ -354,12 +357,9 @@ if ('serviceWorker' in navigator) {
           countdownSetup.style.display = 'none';
           fixPlayer.style.display = 'flex';
           
-          // Сначала запускаем волны (создаем AudioContext), а ПОТОМ звук.
-          // Именно так это работает в Медитации.
-          initFixWaves();
-          fixAudio.play().catch(err => console.warn("Audio play error:", err));
-          
+          // Музыка уже играет, просто запускаем таймер и волны
           startLesson(); 
+          initFixWaves(); 
         }
       }, 1000);
     });
@@ -370,6 +370,7 @@ if ('serviceWorker' in navigator) {
     isBreak = false;
     timeLeft = 60 * 60;
     
+    // Проверяем, играет ли музыка (вдруг прервалась)
     if (fixAudio.paused) {
       fixAudio.play().catch(err => console.warn("Audio play error:", err));
     }
@@ -436,18 +437,26 @@ if ('serviceWorker' in navigator) {
     }
   }
 
-  // Волны для фиксации (как в медитации)
+  // Волны для фиксации (с защитой от повторного AudioContext)
   function initFixWaves() {
     const canvas = document.getElementById('fixCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const analyser = audioCtx.createAnalyser();
-    const source = audioCtx.createMediaElementSource(fixAudio);
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
+    if (!fixAudioCtx) {
+      fixAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = fixAudioCtx.createAnalyser();
+      const source = fixAudioCtx.createMediaElementSource(fixAudio);
+      source.connect(analyser);
+      analyser.connect(fixAudioCtx.destination);
+      fixAudioCtx.analyser = analyser;
+    }
 
+    if (fixAudioCtx.state === 'suspended') {
+      fixAudioCtx.resume();
+    }
+
+    const analyser = fixAudioCtx.analyser;
     analyser.fftSize = 128;
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
