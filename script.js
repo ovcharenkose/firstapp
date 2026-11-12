@@ -275,161 +275,6 @@ if ('serviceWorker' in navigator) {
 })();
 
 
-// ===== Медитация =====
-(function () {
-  const setup = document.getElementById('medSetup');
-  if (!setup) return;
-
-  const step1 = document.getElementById('step1');
-  const step2 = document.getElementById('step2');
-  const step3 = document.getElementById('step3');
-
-  const player = document.getElementById('medPlayer');
-  const audio = document.getElementById('medAudio');
-  const playBtn = document.getElementById('medPlayBtn');
-  const rewindBtn = document.getElementById('medRewindBtn');
-  const progressBar = document.getElementById('medProgress');
-
-  let selectedType = null;
-
-  // Шаг 1: Тип
-  step1.querySelectorAll('.med-opt').forEach(btn => {
-    btn.addEventListener('click', () => {
-      selectedType = btn.dataset.type;
-      step1.style.display = 'none';
-      step2.style.display = 'flex';
-    });
-  });
-
-  // Шаг 2: Длительность
-  step2.querySelectorAll('.med-opt').forEach(btn => {
-    btn.addEventListener('click', () => {
-      step2.style.display = 'none';
-      step3.style.display = 'flex';
-    });
-  });
-
-  // Шаг 3: Настроение
-  step3.querySelectorAll('.med-opt').forEach(btn => {
-    btn.addEventListener('click', () => {
-      let file = selectedType === 'morning' ? 'morning' : 'night';
-      audio.src = '../audio/' + file + '.m4a';
-      
-      setup.style.display = 'none';
-      player.style.display = 'flex';
-      
-      audio.play();
-      playBtn.textContent = '❚❚';
-      initVisualizer();
-    });
-  });
-
-  // Плеер
-  playBtn.addEventListener('click', () => {
-    if (audio.paused) {
-      audio.play();
-      playBtn.textContent = '❚❚';
-    } else {
-      audio.pause();
-      playBtn.textContent = '▶';
-    }
-  });
-
-  rewindBtn.addEventListener('click', () => {
-    audio.currentTime = Math.max(0, audio.currentTime - 10);
-  });
-
-  audio.addEventListener('timeupdate', () => {
-    if (audio.duration) {
-      const pct = (audio.currentTime / audio.duration) * 100;
-      progressBar.style.width = pct + '%';
-    }
-  });
-
-  // Функция рисования неоновых волн
-  function initVisualizer() {
-    const canvas = document.getElementById('medCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const analyser = audioCtx.createAnalyser();
-    const source = audioCtx.createMediaElementSource(audio);
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
-
-    analyser.fftSize = 128;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-
-    let offset = 0;
-
-    function draw() {
-      requestAnimationFrame(draw);
-      analyser.getByteFrequencyData(dataArray);
-
-      const dpr = window.devicePixelRatio || 1;
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      
-      if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
-        canvas.width = w * dpr;
-        canvas.height = h * dpr;
-        ctx.scale(dpr, dpr);
-      }
-
-      ctx.clearRect(0, 0, w, h);
-
-      let sum = 0;
-      for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
-      const avg = sum / bufferLength / 255; 
-
-      // Пастельный радужный градиент
-      const grad = ctx.createLinearGradient(0, 0, w, 0);
-      grad.addColorStop(0.00, 'rgba(201, 160, 160, 0.8)');
-      grad.addColorStop(0.25, 'rgba(242, 215, 133, 0.8)');
-      grad.addColorStop(0.50, 'rgba(168, 184, 144, 0.8)');
-      grad.addColorStop(0.75, 'rgba(160, 190, 210, 0.8)');
-      grad.addColorStop(1.00, 'rgba(200, 170, 210, 0.8)');
-
-      // Волна 1
-      ctx.beginPath();
-      ctx.moveTo(0, h);
-      const points = 30;
-      const step = w / points;
-      const amp = 5 + avg * 30; 
-      offset += 0.04 + avg * 0.1;
-
-      for (let i = 0; i <= points; i++) {
-        const x = i * step;
-        const y = h * 0.6 + Math.sin(i * 0.4 + offset) * amp;
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(w, h);
-      ctx.closePath();
-      ctx.fillStyle = grad;
-      ctx.fill();
-
-      // Волна 2
-      ctx.beginPath();
-      ctx.moveTo(0, h);
-      for (let i = 0; i <= points; i++) {
-        const x = i * step;
-        const y = h * 0.7 + Math.sin(i * 0.6 - offset * 1.2) * amp * 0.7;
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(w, h);
-      ctx.closePath();
-      ctx.globalAlpha = 0.6;
-      ctx.fillStyle = grad;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-    draw();
-  }
-})();
-
-
 // ===== Фиксация =====
 (function () {
   const fixSetup = document.getElementById('fixSetup');
@@ -459,6 +304,7 @@ if ('serviceWorker' in navigator) {
   let isBreak = false;
   let timerInterval = null;
   let timeLeft = 0;
+  let audioCtx, analyser, source;
 
   // Кнопка "Назад"
   if (backBtn) {
@@ -492,8 +338,13 @@ if ('serviceWorker' in navigator) {
       fixMusicName.textContent = btn.textContent;
       fixAudio.src = '../audio/' + music + '.m4a';
 
-      // Запускаем воспроизведение прямо сейчас, пока палец еще на экране (Safari это любит)
-      fixAudio.play().catch(err => console.warn("Audio play error:", err));
+      // Разблокировка звука
+      fixAudio.volume = 0;
+      fixAudio.play().then(() => {
+        fixAudio.pause();
+        fixAudio.currentTime = 0;
+        fixAudio.volume = 1;
+      }).catch(err => console.warn("Audio unlock:", err));
 
       musicSetup.style.display = 'none';
       countdownSetup.style.display = 'flex';
@@ -510,9 +361,8 @@ if ('serviceWorker' in navigator) {
           countdownSetup.style.display = 'none';
           fixPlayer.style.display = 'flex';
           
-          // Важно: музыка уже играет, таймер пошел
           startLesson(); 
-          initFixWaves();
+          initFixWaves(); // Включаем волны только когда экран уже открыт
         }
       }, 1000);
     });
@@ -523,11 +373,7 @@ if ('serviceWorker' in navigator) {
     isBreak = false;
     timeLeft = 60 * 60;
     
-    // Если музыка остановилась (например, при переходе с перерыва), включаем её обратно
-    if (fixAudio.paused) {
-      fixAudio.play().catch(err => console.warn("Audio play error:", err));
-    }
-    
+    fixAudio.play().catch(err => console.warn("Audio play error:", err));
     runTimer();
     updateMediaSession();
   }
@@ -540,21 +386,16 @@ if ('serviceWorker' in navigator) {
     updateMediaSession();
   }
 
-  // === ФОНОВЫЙ РЕЖИМ (Экран блокировки) ===
+  // Фоновый режим (Экран блокировки)
   function updateMediaSession() {
     if ('mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: fixStatus.textContent, // "Урок 1/3" или "Break"
+        title: fixStatus.textContent,
         artist: 'Change Your Life',
         album: fixMusicName.textContent
       });
-
-      navigator.mediaSession.setActionHandler('play', () => {
-        fixAudio.play();
-      });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        fixAudio.pause();
-      });
+      navigator.mediaSession.setActionHandler('play', () => fixAudio.play());
+      navigator.mediaSession.setActionHandler('pause', () => fixAudio.pause());
     }
   }
 
@@ -610,17 +451,23 @@ if ('serviceWorker' in navigator) {
     }
   }
 
-  // Волны для фиксации
+  // Волны для фиксации (исправленные для iPhone)
   function initFixWaves() {
     const canvas = document.getElementById('fixCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const analyser = audioCtx.createAnalyser();
-    const source = audioCtx.createMediaElementSource(fixAudio);
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioCtx.createAnalyser();
+      source = audioCtx.createMediaElementSource(fixAudio);
+      source.connect(analyser);
+      analyser.connect(audioCtx.destination);
+    }
+
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
 
     analyser.fftSize = 128;
     const bufferLength = analyser.frequencyBinCount;
