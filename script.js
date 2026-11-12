@@ -277,7 +277,6 @@ if ('serviceWorker' in navigator) {
 
 
 // ===== Фиксация =====
-
 (function () {
   const fixSetup = document.getElementById('fixSetup');
   if (!fixSetup) return;
@@ -295,6 +294,7 @@ if ('serviceWorker' in navigator) {
   const fixMusicName = document.getElementById('fixMusicName');
   const fixProgress = document.getElementById('fixProgress');
   const fixAudio = document.getElementById('fixAudio');
+  
   const backBtn = document.querySelector('.cal-back');
 
   let totalLessons = 3;
@@ -305,7 +305,6 @@ if ('serviceWorker' in navigator) {
   let isBreak = false;
   let timerInterval = null;
   let timeLeft = 0;
-  let audioCtx = null; // Создадим его только когда дойдем до плеера
 
   // Кнопка "Назад"
   if (backBtn) {
@@ -332,14 +331,16 @@ if ('serviceWorker' in navigator) {
     musicSetup.style.display = 'flex';
   });
 
-  // Шаг 2 -> Шаг 3 (Отсчет и запуск)
+  // Шаг 2 -> Шаг 3 (Отсчет)
   document.querySelectorAll('.fix-music-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const music = btn.dataset.music;
       fixMusicName.textContent = btn.textContent;
       fixAudio.src = '../audio/' + music + '.m4a';
 
-      // Начинаем отсчет
+      // === КАК В МЕДИТАЦИИ: Запускаем музыку прямо сейчас, пока палец на экране ===
+      fixAudio.play().catch(err => console.warn("Audio play error:", err));
+
       musicSetup.style.display = 'none';
       countdownSetup.style.display = 'flex';
 
@@ -355,11 +356,7 @@ if ('serviceWorker' in navigator) {
           countdownSetup.style.display = 'none';
           fixPlayer.style.display = 'flex';
           
-          // Отсчет закончился. Включаем звук и запускаем волны.
-          // Важно: это происходит сразу после таймера, но палец пользователя 
-          // только что нажимал кнопку, поэтому Safari разрешит звук.
-          fixAudio.play().catch(err => console.warn("Audio play error:", err));
-          
+          // Музыка уже играет. Просто запускаем таймер и волны.
           startLesson(); 
           initFixWaves(); 
         }
@@ -372,12 +369,12 @@ if ('serviceWorker' in navigator) {
     isBreak = false;
     timeLeft = 60 * 60;
     
+    // Если музыка остановилась (например, при переходе с перерыва), включаем её обратно
     if (fixAudio.paused) {
       fixAudio.play().catch(err => console.warn("Audio play error:", err));
     }
     
     runTimer();
-    updateMediaSession();
   }
 
   function startBreak(isExtra = false) {
@@ -385,20 +382,6 @@ if ('serviceWorker' in navigator) {
     isBreak = true;
     timeLeft = (isExtra ? extraBreakMin : breakMin) * 60;
     runTimer();
-    updateMediaSession();
-  }
-
-  // Фоновый режим (Экран блокировки)
-  function updateMediaSession() {
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: fixStatus.textContent,
-        artist: 'Change Your Life',
-        album: fixMusicName.textContent
-      });
-      navigator.mediaSession.setActionHandler('play', () => fixAudio.play());
-      navigator.mediaSession.setActionHandler('pause', () => fixAudio.pause());
-    }
   }
 
   function runTimer() {
@@ -408,15 +391,6 @@ if ('serviceWorker' in navigator) {
     timerInterval = setInterval(() => {
       timeLeft--;
       updateTimerDisplay();
-
-      // Обновляем время на экране блокировки каждую секунду
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: fixStatus.textContent + ' (' + fixTimer.textContent + ')',
-          artist: 'Change Your Life',
-          album: fixMusicName.textContent
-        });
-      }
 
       if (timeLeft <= 0) {
         clearInterval(timerInterval);
@@ -462,28 +436,18 @@ if ('serviceWorker' in navigator) {
     }
   }
 
-  // Волны для фиксации
+  // Волны для фиксации (как в медитации)
   function initFixWaves() {
     const canvas = document.getElementById('fixCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // Создаем AudioContext один раз и подключаем к аудио
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const analyser = audioCtx.createAnalyser();
-      const source = audioCtx.createMediaElementSource(fixAudio);
-      source.connect(analyser);
-      analyser.connect(audioCtx.destination);
-      audioCtx.analyser = analyser; // Сохраняем для доступа в draw
-    }
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const analyser = audioCtx.createAnalyser();
+    const source = audioCtx.createMediaElementSource(fixAudio);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
 
-    // Если контекст был "усыплен", будим его
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-
-    const analyser = audioCtx.analyser;
     analyser.fftSize = 128;
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
