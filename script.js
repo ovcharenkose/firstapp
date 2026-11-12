@@ -287,7 +287,6 @@ if ('serviceWorker' in navigator) {
   const finishSetup = document.getElementById('finishSetup');
 
   const fixNextBtn = document.getElementById('fixNextBtn');
-  const countdownNumber = document.getElementById('countdownNumber');
 
   const fixStatus = document.getElementById('fixStatus');
   const fixTimer = document.getElementById('fixTimer');
@@ -332,36 +331,22 @@ if ('serviceWorker' in navigator) {
     musicSetup.style.display = 'flex';
   });
 
-  // Шаг 2 -> Шаг 3 (Отсчет + Мгновенный запуск звука)
+  // Шаг 2 -> Шаг 3 (СРАЗУ ЗАПУСКАЕМ ЗВУК, БЕЗ ЗАДЕРЖЕК)
   document.querySelectorAll('.fix-music-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const music = btn.dataset.music;
       fixMusicName.textContent = btn.textContent;
       fixAudio.src = '../audio/' + music + '.m4a';
 
-      // === КАК В МЕДИТАЦИИ: Включаем звук прямо сейчас ===
-      fixAudio.play().catch(err => console.warn("Audio play error:", err));
-
+      // Прячем выбор музыки и показываем плеер (отсчет пропускаем)
       musicSetup.style.display = 'none';
-      countdownSetup.style.display = 'flex';
-
-      let count = 10;
-      countdownNumber.textContent = count;
-
-      const countInt = setInterval(() => {
-        count--;
-        if (count > 0) {
-          countdownNumber.textContent = count;
-        } else {
-          clearInterval(countInt);
-          countdownSetup.style.display = 'none';
-          fixPlayer.style.display = 'flex';
-          
-          // Музыка уже играет, просто запускаем таймер и волны
-          startLesson(); 
-          initFixWaves(); 
-        }
-      }, 1000);
+      fixPlayer.style.display = 'flex';
+      
+      // Запускаем звук и волны сразу
+      fixAudio.play().catch(err => console.warn("Audio play error:", err));
+      
+      startLesson(); 
+      initFixWaves(); 
     });
   });
 
@@ -370,7 +355,6 @@ if ('serviceWorker' in navigator) {
     isBreak = false;
     timeLeft = 60 * 60;
     
-    // Проверяем, играет ли музыка (вдруг прервалась)
     if (fixAudio.paused) {
       fixAudio.play().catch(err => console.warn("Audio play error:", err));
     }
@@ -437,7 +421,7 @@ if ('serviceWorker' in navigator) {
     }
   }
 
-  // Волны для фиксации (с защитой от повторного AudioContext)
+  // Волны для фиксации (как в Медитации)
   function initFixWaves() {
     const canvas = document.getElementById('fixCanvas');
     if (!canvas) return;
